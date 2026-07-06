@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and publish macOS app
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure tag belongs to main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Test
+        run: sh scripts/test.sh
+
+      - name: Package app
+        run: sh scripts/package-app.sh
+
+      - name: Archive app
+        run: |
+          mkdir -p dist/release
+          ditto -c -k --keepParent \
+            dist/MacMillisecondClock.app \
+            "dist/release/MacMillisecondClock-${GITHUB_REF_NAME}.zip"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/release/MacMillisecondClock-${GITHUB_REF_NAME}.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "MacMillisecondClock ${GITHUB_REF_NAME}" \
+            --notes "Release ${GITHUB_REF_NAME}"
