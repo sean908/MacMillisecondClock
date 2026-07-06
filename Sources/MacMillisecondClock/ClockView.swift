@@ -1,11 +1,15 @@
 import AppKit
+import ClockWidgetCore
 
 final class ClockView: NSView {
     var contextMenuProvider: (() -> NSMenu)?
 
     var stringValue: String {
         get { textField.stringValue }
-        set { textField.stringValue = newValue }
+        set {
+            textField.stringValue = newValue
+            needsLayout = true
+        }
     }
 
     private let textField: NSTextField = {
@@ -16,6 +20,9 @@ final class ClockView: NSView {
         textField.textColor = .labelColor
         textField.backgroundColor = .clear
         textField.lineBreakMode = .byClipping
+        textField.isSelectable = false
+        textField.isEditable = false
+        textField.refusesFirstResponder = true
         return textField
     }()
 
@@ -41,6 +48,10 @@ final class ClockView: NSView {
         true
     }
 
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        bounds.contains(point) ? self : nil
+    }
+
     override func mouseDown(with event: NSEvent) {
         window?.performDrag(with: event)
     }
@@ -51,5 +62,20 @@ final class ClockView: NSView {
         }
 
         NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+
+    func applyTextStyle(font: NSFont, color: NSColor) {
+        textField.font = font
+        textField.textColor = color
+        needsLayout = true
+    }
+
+    func measuredTextSize() -> ClockTextMeasurer.Size {
+        let attributed = NSAttributedString(
+            string: stringValue.isEmpty ? "00:00:00.000" : stringValue,
+            attributes: [.font: textField.font ?? NSFont.systemFont(ofSize: 34)]
+        )
+        let size = attributed.size()
+        return ClockTextMeasurer.Size(width: size.width, height: size.height)
     }
 }

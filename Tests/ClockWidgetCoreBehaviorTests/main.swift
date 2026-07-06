@@ -36,6 +36,59 @@ func testCustomFormatPersistsAcrossSettingsReload() {
     expect(!reloaded.isPinned, "pin state should persist")
 }
 
+func testDefaultSettingsUseDefaultTextStyle() {
+    let store = InMemorySettingsStore()
+    let settings = ClockSettings.load(from: store)
+
+    expect(settings.textColorHex == nil, "default color should use the system label color")
+    expect(settings.fontName == nil, "default font should use the monospaced digit system font")
+    expect(settings.fontSize == 34, "default font size should be 34")
+}
+
+func testCustomTextStylePersistsAcrossSettingsReload() {
+    let store = InMemorySettingsStore()
+    let original = ClockSettings(
+        timeFormat: "HH:mm:ss.SSS",
+        isPinned: true,
+        textColorHex: "#336699CC",
+        fontName: "Helvetica",
+        fontSize: 48
+    )
+
+    original.save(to: store)
+    let reloaded = ClockSettings.load(from: store)
+
+    expect(reloaded.textColorHex == "#336699CC", "custom color should persist")
+    expect(reloaded.fontName == "Helvetica", "custom font should persist")
+    expect(reloaded.fontSize == 48, "custom font size should persist")
+}
+
+func testInvalidFontSizeFallsBackToDefault() {
+    let store = InMemorySettingsStore()
+    store.set(4.0, forKey: "clock.fontSize")
+
+    let settings = ClockSettings.load(from: store)
+
+    expect(settings.fontSize == 34, "invalid saved font sizes should fall back to default")
+}
+
+func testHexColorRoundTripsRGBAValues() {
+    let color = RGBAColor(red: 51, green: 102, blue: 153, alpha: 204)
+    let hex = HexColorCodec.hexString(from: color)
+    let parsed = HexColorCodec.color(from: hex)
+
+    expect(hex == "#336699CC", "RGBA color should encode to #RRGGBBAA")
+    expect(parsed == color, "RGBA color should round-trip from hex")
+}
+
+func testClockViewSizingAddsPaddingAroundRenderedText() {
+    let textSize = ClockTextMeasurer.Size(width: 240, height: 40)
+    let fittedSize = ClockWidgetSizing.fittedSize(forTextSize: textSize)
+
+    expect(fittedSize.width == 264, "widget width should add horizontal padding around rendered text")
+    expect(fittedSize.height == 56, "widget height should add vertical padding around rendered text")
+}
+
 func testPinEnabledMapsToFloatingWindowLevel() {
     expect(WindowPinning.windowLevel(forPinnedState: true) == .floating, "pinned windows should float")
 }
@@ -55,6 +108,11 @@ func testRefreshSchedulerTargetsSixtyFramesPerSecond() {
 testDefaultSettingsUseMillisecondTimeFormat()
 testClockFormatterRendersMilliseconds()
 testCustomFormatPersistsAcrossSettingsReload()
+testDefaultSettingsUseDefaultTextStyle()
+testCustomTextStylePersistsAcrossSettingsReload()
+testInvalidFontSizeFallsBackToDefault()
+testHexColorRoundTripsRGBAValues()
+testClockViewSizingAddsPaddingAroundRenderedText()
 testPinEnabledMapsToFloatingWindowLevel()
 testPinDisabledMapsToNormalWindowLevel()
 testRefreshSchedulerTargetsSixtyFramesPerSecond()
