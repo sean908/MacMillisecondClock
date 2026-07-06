@@ -38,7 +38,7 @@ final class ClockWindowController: NSWindowController {
 
     private func configureWindow(_ window: NSWindow) {
         window.isOpaque = false
-        window.backgroundColor = .clear
+        window.backgroundColor = ClockWindowController.hitTestBackgroundColor
         window.hasShadow = false
         window.isMovableByWindowBackground = true
         window.delegate = self
@@ -320,6 +320,13 @@ final class ClockWindowController: NSWindowController {
                 blue: UInt8(clamping: Int(round(rgb.blueComponent * 255.0))),
                 alpha: UInt8(clamping: Int(round(rgb.alphaComponent * 255.0)))
             )
+        )
+    }
+
+    private static var hitTestBackgroundColor: NSColor {
+        NSColor(
+            calibratedWhite: 0,
+            alpha: CGFloat(ClockInteractionSurface.hitTestAlpha)
         )
     }
 }

@@ -89,6 +89,11 @@ func testClockViewSizingAddsPaddingAroundRenderedText() {
     expect(fittedSize.height == 56, "widget height should add vertical padding around rendered text")
 }
 
+func testInteractionSurfaceUsesNonZeroAlphaForTransparentHitTesting() {
+    expect(ClockInteractionSurface.hitTestAlpha > 0, "hit-test surface alpha must be non-zero")
+    expect(ClockInteractionSurface.hitTestAlpha <= 0.01, "hit-test surface should remain visually transparent")
+}
+
 func testPinEnabledMapsToFloatingWindowLevel() {
     expect(WindowPinning.windowLevel(forPinnedState: true) == .floating, "pinned windows should float")
 }
@@ -113,6 +118,7 @@ testCustomTextStylePersistsAcrossSettingsReload()
 testInvalidFontSizeFallsBackToDefault()
 testHexColorRoundTripsRGBAValues()
 testClockViewSizingAddsPaddingAroundRenderedText()
+testInteractionSurfaceUsesNonZeroAlphaForTransparentHitTesting()
 testPinEnabledMapsToFloatingWindowLevel()
 testPinDisabledMapsToNormalWindowLevel()
 testRefreshSchedulerTargetsSixtyFramesPerSecond()

@@ -29,7 +29,10 @@ final class ClockView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        layer?.backgroundColor = NSColor.clear.cgColor
+        layer?.backgroundColor = NSColor(
+            calibratedWhite: 0,
+            alpha: CGFloat(ClockInteractionSurface.hitTestAlpha)
+        ).cgColor
         addSubview(textField)
 
         NSLayoutConstraint.activate([

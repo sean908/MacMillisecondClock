@@ -218,6 +218,10 @@ public enum ClockWidgetSizing {
     }
 }
 
+public enum ClockInteractionSurface {
+    public static let hitTestAlpha = 0.005
+}
+
 public struct ClockFormatter {
     private let format: String
 
