@@ -238,6 +238,82 @@ public struct ClockFormatter {
     }
 }
 
+public final class ClockDisplayModel {
+    public typealias Observer = (String) -> Void
+
+    private let settingsStore: ClockSettingsStore
+    private var formatter: ClockFormatter
+    private var observers: [Observer] = []
+
+    public private(set) var settings: ClockSettings
+
+    public init(settingsStore: ClockSettingsStore) {
+        self.settingsStore = settingsStore
+        self.settings = ClockSettings.load(from: settingsStore)
+        self.formatter = ClockFormatter(format: settings.timeFormat)
+    }
+
+    public func addObserver(_ observer: @escaping Observer) {
+        observers.append(observer)
+    }
+
+    public func displayText(for date: Date, timeZone: TimeZone = .current) -> String {
+        formatter.string(from: date, timeZone: timeZone)
+    }
+
+    public func refresh(date: Date = Date(), timeZone: TimeZone = .current) {
+        let text = displayText(for: date, timeZone: timeZone)
+        observers.forEach { $0(text) }
+    }
+
+    public func updateSettings(
+        _ update: (inout ClockSettings) -> Void,
+        refreshDate: Date = Date(),
+        timeZone: TimeZone = .current
+    ) {
+        update(&settings)
+        applySettings(refreshDate: refreshDate, timeZone: timeZone)
+    }
+
+    public func updateTimeFormat(
+        _ timeFormat: String,
+        refreshDate: Date = Date(),
+        timeZone: TimeZone = .current
+    ) {
+        updateSettings({ $0.timeFormat = timeFormat }, refreshDate: refreshDate, timeZone: timeZone)
+    }
+
+    private func applySettings(refreshDate: Date, timeZone: TimeZone) {
+        formatter = ClockFormatter(format: settings.timeFormat)
+        settings.save(to: settingsStore)
+        refresh(date: refreshDate, timeZone: timeZone)
+    }
+}
+
+public struct AboutPageContent: Equatable {
+    public let appName: String
+    public let version: String
+    public let build: String?
+
+    public init(appName: String, version: String, build: String? = nil) {
+        self.appName = appName
+        self.version = version
+        self.build = build
+    }
+
+    public static func defaultContent() -> AboutPageContent {
+        AboutPageContent(appName: "MacMillisecondClock", version: "1.0.0")
+    }
+
+    public var versionText: String {
+        guard let build, !build.isEmpty else {
+            return "Version \(version)"
+        }
+
+        return "Version \(version) (\(build))"
+    }
+}
+
 public enum ClockWindowLevel: Equatable {
     case normal
     case floating

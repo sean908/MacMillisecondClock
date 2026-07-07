@@ -2,18 +2,15 @@ import AppKit
 import ClockWidgetCore
 
 final class ClockWindowController: NSWindowController {
-    private let settingsStore: ClockSettingsStore
+    private let displayModel: ClockDisplayModel
+    private let aboutPresenter: AboutPresenter
     private let clockView = ClockView(frame: NSRect(x: 0, y: 0, width: 260, height: 74))
-    private var settings: ClockSettings
-    private var formatter: ClockFormatter
-    private var timer: Timer?
     private var activeFont: NSFont
 
-    init(settingsStore: ClockSettingsStore) {
-        self.settingsStore = settingsStore
-        self.settings = ClockSettings.load(from: settingsStore)
-        self.formatter = ClockFormatter(format: settings.timeFormat)
-        self.activeFont = ClockWindowController.font(from: settings)
+    init(displayModel: ClockDisplayModel, aboutPresenter: AboutPresenter) {
+        self.displayModel = displayModel
+        self.aboutPresenter = aboutPresenter
+        self.activeFont = ClockWindowController.font(from: displayModel.settings)
 
         let window = NSWindow(
             contentRect: NSRect(x: 240, y: 240, width: 260, height: 74),
@@ -27,8 +24,9 @@ final class ClockWindowController: NSWindowController {
         configureWindow(window)
         configureClockView()
         applySettings()
-        updateClock()
-        startTimer()
+        displayModel.addObserver { [weak self] text in
+            self?.updateClock(text: text)
+        }
     }
 
     @available(*, unavailable)
@@ -53,31 +51,16 @@ final class ClockWindowController: NSWindowController {
         NSFontManager.shared.action = #selector(changeFont(_:))
     }
 
-    private func startTimer() {
-        timer = Timer.scheduledTimer(
-            withTimeInterval: ClockRefreshPolicy.refreshInterval,
-            repeats: true
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.updateClock()
-            }
-        }
-
-        RunLoop.main.add(timer!, forMode: .common)
-    }
-
-    private func updateClock() {
-        clockView.stringValue = formatter.string(from: Date())
+    private func updateClock(text: String) {
+        clockView.stringValue = text
         resizeWindowToFitClock()
     }
 
     private func applySettings() {
-        formatter = ClockFormatter(format: settings.timeFormat)
+        let settings = displayModel.settings
         activeFont = Self.font(from: settings)
         clockView.applyTextStyle(font: activeFont, color: Self.color(from: settings))
         window?.level = nsWindowLevel(for: WindowPinning.windowLevel(forPinnedState: settings.isPinned))
-        settings.save(to: settingsStore)
-        updateClock()
     }
 
     private func makeContextMenu() -> NSMenu {
@@ -89,7 +72,7 @@ final class ClockWindowController: NSWindowController {
             keyEquivalent: ""
         )
         pinItem.target = self
-        pinItem.state = settings.isPinned ? .on : .off
+        pinItem.state = displayModel.settings.isPinned ? .on : .off
         menu.addItem(pinItem)
 
         menu.addItem(.separator())
@@ -132,6 +115,14 @@ final class ClockWindowController: NSWindowController {
 
         menu.addItem(.separator())
 
+        let aboutItem = NSMenuItem(
+            title: "About...",
+            action: #selector(showAbout),
+            keyEquivalent: ""
+        )
+        aboutItem.target = self
+        menu.addItem(aboutItem)
+
         let quitItem = NSMenuItem(
             title: "Quit",
             action: #selector(quit),
@@ -151,22 +142,21 @@ final class ClockWindowController: NSWindowController {
         )
         item.target = self
         item.format = format
-        item.state = settings.timeFormat == format ? .on : .off
+        item.state = displayModel.settings.timeFormat == format ? .on : .off
         return item
     }
 
     @objc private func togglePin() {
-        settings.isPinned.toggle()
+        displayModel.updateSettings { $0.isPinned.toggle() }
         applySettings()
     }
 
     @objc private func selectFormat(_ sender: FormatMenuItem) {
-        settings.timeFormat = sender.format
-        applySettings()
+        displayModel.updateTimeFormat(sender.format)
     }
 
     @objc private func showCustomFormatDialog() {
-        let input = NSTextField(string: settings.timeFormat)
+        let input = NSTextField(string: displayModel.settings.timeFormat)
         input.frame = NSRect(x: 0, y: 0, width: 260, height: 24)
 
         let alert = NSAlert()
@@ -186,13 +176,12 @@ final class ClockWindowController: NSWindowController {
             return
         }
 
-        settings.timeFormat = trimmed
-        applySettings()
+        displayModel.updateTimeFormat(trimmed)
     }
 
     @objc private func showColorPanel() {
         let panel = NSColorPanel.shared
-        panel.color = Self.color(from: settings)
+        panel.color = Self.color(from: displayModel.settings)
         NotificationCenter.default.removeObserver(
             self,
             name: NSColorPanel.colorDidChangeNotification,
@@ -212,7 +201,7 @@ final class ClockWindowController: NSWindowController {
             return
         }
 
-        settings.textColorHex = Self.hexString(from: panel.color)
+        displayModel.updateSettings { $0.textColorHex = Self.hexString(from: panel.color) }
         applySettings()
     }
 
@@ -223,13 +212,15 @@ final class ClockWindowController: NSWindowController {
 
     @objc private func changeFont(_ sender: NSFontManager) {
         activeFont = sender.convert(activeFont)
-        settings.fontName = activeFont.fontName
-        settings.fontSize = Double(activeFont.pointSize)
+        displayModel.updateSettings {
+            $0.fontName = activeFont.fontName
+            $0.fontSize = Double(activeFont.pointSize)
+        }
         applySettings()
     }
 
     @objc private func showFontSizeDialog() {
-        let input = NSTextField(string: String(format: "%.0f", settings.fontSize))
+        let input = NSTextField(string: String(format: "%.0f", displayModel.settings.fontSize))
         input.frame = NSRect(x: 0, y: 0, width: 140, height: 24)
 
         let alert = NSAlert()
@@ -245,8 +236,12 @@ final class ClockWindowController: NSWindowController {
             return
         }
 
-        settings.fontSize = size
+        displayModel.updateSettings { $0.fontSize = size }
         applySettings()
+    }
+
+    @objc private func showAbout() {
+        aboutPresenter.showAbout()
     }
 
     @objc private func quit() {
@@ -336,7 +331,5 @@ private final class FormatMenuItem: NSMenuItem {
 }
 
 extension ClockWindowController: NSWindowDelegate {
-    func windowWillClose(_ notification: Notification) {
-        timer?.invalidate()
-    }
+    func windowWillClose(_ notification: Notification) {}
 }

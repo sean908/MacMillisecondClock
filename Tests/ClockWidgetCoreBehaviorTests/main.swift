@@ -110,6 +110,82 @@ func testRefreshSchedulerTargetsSixtyFramesPerSecond() {
     )
 }
 
+func testMenuBarClockUsesDefaultMillisecondFormat() {
+    let store = InMemorySettingsStore()
+    let model = ClockDisplayModel(settingsStore: store)
+    let date = Date(timeIntervalSince1970: 1.234)
+
+    expect(
+        model.displayText(for: date, timeZone: TimeZone(secondsFromGMT: 0)!) == "00:00:01.234",
+        "menu bar clock should use the default millisecond format"
+    )
+}
+
+func testMenuBarClockUsesConfiguredTimeFormat() {
+    let store = InMemorySettingsStore()
+    ClockSettings(timeFormat: "yyyy-MM-dd HH:mm:ss.SSS").save(to: store)
+    let model = ClockDisplayModel(settingsStore: store)
+    let date = Date(timeIntervalSince1970: 1.234)
+
+    expect(
+        model.displayText(for: date, timeZone: TimeZone(secondsFromGMT: 0)!) == "1970-01-01 00:00:01.234",
+        "menu bar clock should use the configured time format"
+    )
+}
+
+func testClockDisplayTextIsSharedAcrossSurfaces() {
+    let store = InMemorySettingsStore()
+    let model = ClockDisplayModel(settingsStore: store)
+    let date = Date(timeIntervalSince1970: 1.234)
+    var desktopText = ""
+    var menuBarText = ""
+
+    model.addObserver { text in
+        desktopText = text
+    }
+    model.addObserver { text in
+        menuBarText = text
+    }
+    model.refresh(date: date, timeZone: TimeZone(secondsFromGMT: 0)!)
+
+    expect(desktopText == "00:00:01.234", "desktop clock should receive refreshed display text")
+    expect(menuBarText == desktopText, "menu bar clock should receive the same display text")
+}
+
+func testFormatSelectionUpdatesAllClockSurfaces() {
+    let store = InMemorySettingsStore()
+    let model = ClockDisplayModel(settingsStore: store)
+    let date = Date(timeIntervalSince1970: 1.234)
+    var desktopText = ""
+    var menuBarText = ""
+
+    model.addObserver { text in
+        desktopText = text
+    }
+    model.addObserver { text in
+        menuBarText = text
+    }
+    model.updateTimeFormat("yyyy-MM-dd HH:mm:ss.SSS", refreshDate: date, timeZone: TimeZone(secondsFromGMT: 0)!)
+    let reloaded = ClockSettings.load(from: store)
+
+    expect(reloaded.timeFormat == "yyyy-MM-dd HH:mm:ss.SSS", "format selection should persist")
+    expect(desktopText == "1970-01-01 00:00:01.234", "desktop clock should update after format selection")
+    expect(menuBarText == desktopText, "menu bar clock should update after format selection")
+}
+
+func testAboutPageDisplaysDefaultAppVersion() {
+    let content = AboutPageContent.defaultContent()
+
+    expect(content.appName == "MacMillisecondClock", "about page should display the app name")
+    expect(content.versionText == "Version 1.0.0", "about page should display the default app version")
+}
+
+func testAboutPageDisplaysBuildNumberWhenAvailable() {
+    let content = AboutPageContent(appName: "Clock", version: "2.1.0", build: "42")
+
+    expect(content.versionText == "Version 2.1.0 (42)", "about page should include the build number")
+}
+
 testDefaultSettingsUseMillisecondTimeFormat()
 testClockFormatterRendersMilliseconds()
 testCustomFormatPersistsAcrossSettingsReload()
@@ -122,5 +198,11 @@ testInteractionSurfaceUsesNonZeroAlphaForTransparentHitTesting()
 testPinEnabledMapsToFloatingWindowLevel()
 testPinDisabledMapsToNormalWindowLevel()
 testRefreshSchedulerTargetsSixtyFramesPerSecond()
+testMenuBarClockUsesDefaultMillisecondFormat()
+testMenuBarClockUsesConfiguredTimeFormat()
+testClockDisplayTextIsSharedAcrossSurfaces()
+testFormatSelectionUpdatesAllClockSurfaces()
+testAboutPageDisplaysDefaultAppVersion()
+testAboutPageDisplaysBuildNumberWhenAvailable()
 
 print("ClockWidgetCoreBehaviorTests passed")

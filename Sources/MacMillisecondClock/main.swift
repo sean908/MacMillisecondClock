@@ -1,21 +1,66 @@
 import AppKit
 import ClockWidgetCore
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var displayModel: ClockDisplayModel?
+    private var aboutPresenter: AboutPresenter?
     private var clockWindowController: ClockWindowController?
+    private var menuBarClockController: MenuBarClockController?
+    private var refreshTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
-        let controller = ClockWindowController(
-            settingsStore: UserDefaultsSettingsStore()
+        let model = ClockDisplayModel(settingsStore: UserDefaultsSettingsStore())
+        let aboutPresenter = AboutPresenter()
+        let windowController = ClockWindowController(displayModel: model, aboutPresenter: aboutPresenter)
+        let menuBarController = MenuBarClockController(
+            displayModel: model,
+            aboutPresenter: aboutPresenter,
+            isClockWindowVisible: { [weak windowController] in
+                windowController?.window?.isVisible ?? false
+            },
+            showClockWindow: { [weak windowController] in
+                windowController?.showWindow(nil)
+                windowController?.window?.orderFrontRegardless()
+            },
+            hideClockWindow: { [weak windowController] in
+                windowController?.window?.orderOut(nil)
+            }
         )
-        controller.showWindow(nil)
-        clockWindowController = controller
+
+        windowController.showWindow(nil)
+        displayModel = model
+        self.aboutPresenter = aboutPresenter
+        clockWindowController = windowController
+        menuBarClockController = menuBarController
+        startRefreshTimer(for: model)
+        model.refresh()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        false
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        refreshTimer?.invalidate()
+    }
+
+    private func startRefreshTimer(for displayModel: ClockDisplayModel) {
+        refreshTimer = Timer.scheduledTimer(
+            timeInterval: ClockRefreshPolicy.refreshInterval,
+            target: self,
+            selector: #selector(refreshClock),
+            userInfo: nil,
+            repeats: true
+        )
+
+        RunLoop.main.add(refreshTimer!, forMode: .common)
+    }
+
+    @objc private func refreshClock() {
+        displayModel?.refresh()
     }
 }
 
