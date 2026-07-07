@@ -42,8 +42,8 @@ final class AboutPresenter {
     private static func contentFromBundle(bundle: Bundle = .main) -> AboutPageContent {
         let info = bundle.infoDictionary ?? [:]
         let appName = info["CFBundleName"] as? String ?? "MacMillisecondClock"
-        let version = info["CFBundleShortVersionString"] as? String ?? "1.0.0"
-        let build = info["CFBundleVersion"] as? String
+        let version = info["CFBundleShortVersionString"] as? String ?? "0.4.0"
+        let build = info["CFBundleVersion"] as? String ?? "alpha.1"
 
         return AboutPageContent(appName: appName, version: version, build: build)
     }

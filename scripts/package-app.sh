@@ -3,6 +3,8 @@ set -eu
 
 APP_NAME="MacMillisecondClock"
 BUNDLE_ID="eu.2088.MacMillisecondClock"
+APP_VERSION="0.4.0"
+APP_BUILD="alpha.1"
 CONFIGURATION="release"
 APP_DIR="dist/${APP_NAME}.app"
 CONTENTS_DIR="${APP_DIR}/Contents"
@@ -66,9 +68,9 @@ cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>${APP_VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>${APP_BUILD}</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSUIElement</key>

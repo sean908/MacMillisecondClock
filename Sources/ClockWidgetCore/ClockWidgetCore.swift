@@ -302,7 +302,7 @@ public struct AboutPageContent: Equatable {
     }
 
     public static func defaultContent() -> AboutPageContent {
-        AboutPageContent(appName: "MacMillisecondClock", version: "1.0.0")
+        AboutPageContent(appName: "MacMillisecondClock", version: "0.4.0", build: "alpha.1")
     }
 
     public var versionText: String {
@@ -310,7 +310,15 @@ public struct AboutPageContent: Equatable {
             return "Version \(version)"
         }
 
+        if build.rangeOfCharacter(from: .letters) != nil {
+            return "Version \(semverTag)-\(build)"
+        }
+
         return "Version \(version) (\(build))"
+    }
+
+    private var semverTag: String {
+        version.hasPrefix("v") ? version : "v\(version)"
     }
 }
 

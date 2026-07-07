@@ -177,13 +177,21 @@ func testAboutPageDisplaysDefaultAppVersion() {
     let content = AboutPageContent.defaultContent()
 
     expect(content.appName == "MacMillisecondClock", "about page should display the app name")
-    expect(content.versionText == "Version 1.0.0", "about page should display the default app version")
+    expect(content.version == "0.4.0", "about page should use the 0.4.0 marketing version")
+    expect(content.build == "alpha.1", "about page should use the alpha.1 prerelease build")
+    expect(content.versionText == "Version v0.4.0-alpha.1", "about page should display the default prerelease version")
 }
 
 func testAboutPageDisplaysBuildNumberWhenAvailable() {
     let content = AboutPageContent(appName: "Clock", version: "2.1.0", build: "42")
 
     expect(content.versionText == "Version 2.1.0 (42)", "about page should include the build number")
+}
+
+func testAboutPageFormatsPrereleaseBuildAsSemver() {
+    let content = AboutPageContent(appName: "Clock", version: "0.4.0", build: "alpha.1")
+
+    expect(content.versionText == "Version v0.4.0-alpha.1", "about page should format prerelease builds as semver")
 }
 
 testDefaultSettingsUseMillisecondTimeFormat()
@@ -204,5 +212,6 @@ testClockDisplayTextIsSharedAcrossSurfaces()
 testFormatSelectionUpdatesAllClockSurfaces()
 testAboutPageDisplaysDefaultAppVersion()
 testAboutPageDisplaysBuildNumberWhenAvailable()
+testAboutPageFormatsPrereleaseBuildAsSemver()
 
 print("ClockWidgetCoreBehaviorTests passed")
